@@ -1,2 +1,2 @@
 # pdb
-A library to read and write PalmDoc DB files
+A library to read and write Palm DB files
