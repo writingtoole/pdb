@@ -4,6 +4,7 @@ package lz77
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 )
 
@@ -135,6 +136,9 @@ func Decompress(data []byte) ([]byte, error) {
 		case b == 0:
 			ret = append(ret, b)
 		case (b >= 1 && b <= 8):
+			if o+int(b)+1 > len(data) {
+				return nil, fmt.Errorf("copy from past end of block: %v/%v", len(data), o+int(b)+1)
+			}
 			d := data[o+1 : o+int(b)+1]
 			ret = append(ret, d...)
 			o += int(b)
@@ -148,8 +152,19 @@ func Decompress(data []byte) ([]byte, error) {
 			if dist > len(ret) {
 				log.Fatalf("dist %v, len %v but len(ret) only %v (%x)", dist, l, len(ret), m)
 			}
-			d := ret[len(ret)-dist : len(ret)-dist+l]
-			ret = append(ret, d...)
+			if dist < 1 {
+				log.Printf("dist %v is less than 1", dist)
+				dist = 1
+			}
+			sl := len(ret)
+			for i := 0; i < l; i++ {
+				idx := (len(ret) - dist)
+				if idx < 0 || idx >= len(ret) {
+					log.Printf("Out of range; started %v, off %v, len %v, curidx %v, curlen %v", sl, dist, l, idx, len(ret))
+				}
+				sb := ret[idx]
+				ret = append(ret, sb)
+			}
 		case b >= 0xc0:
 			ret = append(ret, ' ')
 			ret = append(ret, b^0x80)

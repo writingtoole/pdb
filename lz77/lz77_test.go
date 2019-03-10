@@ -15,7 +15,7 @@ func randomJunk(seed int64, l int) []byte {
 	return ret
 }
 
-func FindDiff(l, r []byte) (bool, int) {
+func findDiff(l, r []byte) (bool, int) {
 	m := len(l)
 	if len(r) < len(l) {
 		m = len(r)
@@ -55,8 +55,12 @@ func TestBinaryBlobs(t *testing.T) {
 	for l := 1024; l < 1024*100; l += 1024 {
 		want := randomJunk(int64(l), l)
 		c, _ := Compress(want)
-		got, _ := Decompress(c)
-		if eq, fd := FindDiff(got, want); !eq {
+		got, err := Decompress(c)
+		if err != nil {
+			t.Errorf("error decompressing binary blob %v: %v", l, err)
+			continue
+		}
+		if eq, fd := findDiff(got, want); !eq {
 			t.Errorf("random binary %v (%v/%v/%v) mismatch\n%v\n%v\n%v", l, len(want), len(got), fd, c[0:15], got[0:15], want[0:15])
 			break
 		}
@@ -93,6 +97,16 @@ func TestDecompress(t *testing.T) {
 			name:       "Previous run",
 			compressed: []byte{'a', 'b', 'c', 'd', 'e', 'f', 0x80, 0x05<<3 | 0x01},
 			want:       []byte{'a', 'b', 'c', 'd', 'e', 'f', 'b', 'c', 'd', 'e'},
+		},
+		{
+			name:       "Overlap run",
+			compressed: []byte{'a', 'b', 'c', 'd', 0x80, 0x02<<3 | 0x01},
+			want:       []byte{'a', 'b', 'c', 'd', 'c', 'd', 'c', 'd'},
+		},
+		{
+			name:       "Repeat last byte",
+			compressed: []byte{'a', 'b', 0x80, 0x01<<3 | 0x06},
+			want:       []byte{'a', 'b', 'b', 'b', 'b', 'b', 'b', 'b', 'b', 'b', 'b'},
 		},
 	}
 
@@ -207,7 +221,7 @@ func TestFindRun(t *testing.T) {
 	for _, test := range tests {
 		gotLen, gotOffset := findRun([]byte(test.data), []byte(test.seen))
 		if gotLen != test.wantLen || gotOffset != test.wantOffset {
-			t.Errorf("findRun(%v): %q/%q, got %v/%v, want %v/%v", test.name, test.data, test.seen, gotLen, gotOffset, test.wantLen, test.wantOffset)
+			t.Errorf("findRun(%v): %q/%q, got %v/%v, want %v/%v", test.name, test.data, test.seen, gotOffset, gotLen, test.wantOffset, test.wantLen)
 		}
 	}
 }
@@ -227,7 +241,7 @@ func TestFileRoundTrip(t *testing.T) {
 		}
 		c, _ := Compress(contents)
 		d, _ := Decompress(c)
-		if eq, fd := FindDiff(contents, d); !eq {
+		if eq, fd := findDiff(contents, d); !eq {
 			t.Errorf("Mismatch round-tripping %v at %v", file, fd)
 		}
 	}
