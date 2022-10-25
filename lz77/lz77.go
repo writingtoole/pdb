@@ -150,7 +150,7 @@ func Decompress(data []byte) ([]byte, error) {
 			dist := (m & 0x3fff) >> 3
 			l := m&0x07 + 3
 			if dist > len(ret) {
-				log.Fatalf("dist %v, len %v but len(ret) only %v (%x)", dist, l, len(ret), m)
+				return nil, fmt.Errorf("dist %v, len %v but len(ret) only %v (%x)", dist, l, len(ret), m)
 			}
 			if dist < 1 {
 				log.Printf("dist %v is less than 1", dist)
@@ -169,7 +169,7 @@ func Decompress(data []byte) ([]byte, error) {
 			ret = append(ret, ' ')
 			ret = append(ret, b^0x80)
 		default:
-			log.Fatalf("unknown byte %v", b)
+			return nil, fmt.Errorf("unknown byte %v", b)
 		}
 
 	}
